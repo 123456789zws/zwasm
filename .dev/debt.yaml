@@ -3,6 +3,65 @@
 # Refresh on every /continue resume — .claude/skills/continue/RESUME.md Step 0.5.
 
 entries:
+  - id: "D-527"
+    layer: "code"
+    status: "now"
+    front: D-component
+    description: |-
+      **Any component with two or more exports fails validation with
+      `InvalidSort`.** Single-export components load fine regardless of type
+      complexity, which is why this survived: every component fixture in zwasm's
+      and cljw's trees exports exactly one function.
+
+      REPRODUCTION (hand-written WAT guest, no Rust toolchain):
+
+        package local:cljwit@0.1.0;
+        world echo {
+          export echo-bool: func(v: bool) -> bool;
+          export echo-s32:  func(v: s32)  -> s32;
+        }
+
+        wasm-tools parse echo.wat -o echo.core.wasm
+        wasm-tools component embed echo.wit echo.core.wasm -o echo.embed.wasm
+        wasm-tools component new echo.embed.wasm -o two_export.wasm
+        zwasm run --invoke echo-bool two_export.wasm 1
+        # -> cannot run component: InvalidSort
+
+      Controls: dropping to ONE export makes it load (reaches
+      `ArgArityMismatch`); a lone `string` echo — memory + cabi_realloc + a
+      post-return — also loads. Confirmed across three independent export pairs
+      (bool+s32, f32+f64, s32+u64), so the trigger is export COUNT, not any
+      particular type. `wasm-tools validate --features all` accepts every one of
+      these, so zwasm is rejecting spec-valid components.
+
+      ROOT CAUSE (located, not guessed): `src/feature/component/types.zig`
+      appends to `component_funcs` for imports (`.func`), canon `.lift`s and
+      `.func` aliases, but the `.@"export"` section arm appends ONLY to
+      `type_space`, for type exports:
+
+          .@"export" => for (exports.items[exports_before..], exports_before..) |ex, ex_abs| {
+              if (std.meta.activeTag(ex.sort) == .type) try type_space.append(...);
+          },
+
+      Per the Component Model a component-level `export` of a func introduces a
+      new entry in the func index space — which is why `wasm-tools print`
+      numbers them `(;1;)`, `(;3;)`, … interleaved with the lifts. zwasm counts
+      only the lifts, so from the second export onward each lift's sortidx reads
+      out of bounds and `validate.zig`'s
+      `.func => if (ex.index >= info.component_funcs.items.len) return Error.InvalidSort`
+      fires. The same omission presumably affects `.instance`, `.component` and
+      `.value` exports; only `.type` is handled today.
+
+      IMPACT: this blocks ClojureWasm's headline feature outright —
+      `(:require ["x.wasm" :as x])` is sold as "a component becomes a
+      namespace", and today it can only load components with a single function.
+      Filed from the cljw side as D-567.
+    first_raised: "2026-08-04"
+    last_reviewed: "2026-08-04"
+    refs: |-
+      src/feature/component/types.zig (the `.@"export"` section arm, ~line 1676);
+      src/feature/component/validate.zig (the `.func` sortidx bound, ~line 78);
+      ClojureWasm D-567 + its test/e2e/fixtures/wasm/README_echo.md.
   - id: "D-526"
     layer: "docs"
     status: "note"
