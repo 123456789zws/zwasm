@@ -10,7 +10,32 @@ SemVer compatibility guarantees start at the first stable `v2.0.0` tag.
 
 ## [Unreleased]
 
-_No changes yet._
+A component with two or more exports failed validation. Every component
+fixture in this repo and in every known downstream exported exactly one
+function, which is why it survived to a tagged release.
+
+### Fixed
+
+- **Component export index-space accounting.** A component-level
+  `export` of a func ADDS an entry to the component func index space
+  (`Binary.md`) — it does not merely name an existing one. Exports were
+  never appended, so from the second export onward every `canon lift`'s
+  sortidx read out of bounds and the component was rejected with
+  `InvalidSort`. `wasm-tools validate --features all` accepts every case
+  this rejected, i.e. zwasm was refusing spec-valid components rather
+  than being strict. `.instance` exports had the same omission (#157).
+- **An export could satisfy its own sortidx bound.** Once exports began
+  extending their index spaces, the export bound check read the space
+  size AFTER the export's own entry, so `(export "a" (instance 0))` with
+  no instances validated — the export was the instance it named. The
+  bound is now the space size at the export's definition point, which is
+  what a sortidx referring only to earlier definitions actually means.
+  Caught by the official corpus (`types_02`).
+
+Found from the consumer side: ClojureWasm could not load a typed
+16-export component fixture built to verify its WIT marshalling table.
+Its headline feature — a Wasm component becoming a Clojure namespace —
+could only ever load single-function components.
 
 ## [2.4.0] - 2026-08-03
 
