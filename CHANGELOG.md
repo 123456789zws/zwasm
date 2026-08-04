@@ -10,11 +10,21 @@ SemVer compatibility guarantees start at the first stable `v2.0.0` tag.
 
 ## [Unreleased]
 
+### Added
+
+- **`Limits.max_output_bytes` / `Host.max_capture_bytes`** — a cap on how many
+  bytes a captured run may buffer. Nothing else bounded this: fuel bounds
+  instructions, and bytes-per-instruction is the guest's choice. Measured from
+  ClojureWasm, a guest looping on a 64-byte `fd_write` buffered 64,000,000 bytes
+  for 1,000,000 fuel — ~64 GB under zwasm's own 1e9 default before the fuel trap
+  fires. `null` stays the default, so every existing caller is unchanged; a
+  capped buffer keeps the prefix that fits and returns `.nospc` (#158).
+
+### Fixed
+
 A component with two or more exports failed validation. Every component
 fixture in this repo and in every known downstream exported exactly one
 function, which is why it survived to a tagged release.
-
-### Fixed
 
 - **Component export index-space accounting.** A component-level
   `export` of a func ADDS an entry to the component func index space
