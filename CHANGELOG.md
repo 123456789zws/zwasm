@@ -10,6 +10,15 @@ SemVer compatibility guarantees start at the first stable `v2.0.0` tag.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [2.4.1] - 2026-08-04
+
+Consumer-driven patch release. Both fixes were found from ClojureWasm, and both
+are things zwasm's own fixtures could not have surfaced: every component fixture
+in this repo exported exactly one function, and no test captured guest output
+from a guest that wanted to produce a lot of it.
+
 ### Added
 
 - **`Limits.max_output_bytes` / `Host.max_capture_bytes`** — a cap on how many

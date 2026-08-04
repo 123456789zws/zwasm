@@ -5,10 +5,14 @@
 
 ## Current state — MAINTENANCE MODE (post-v2.0.0)
 
-**v2.4.0 is the release line** (tag cut 2026-08-03, USER-GRANTED in-session
-per ADR-0156 — external-consumer release: `-Dcompiler-rt` for non-Zig static
-linking (#154) + sub-3.0 GC-cohort DCE fix (#150, v1_0 `.text` −11.6%);
-cljw re-pinned to it. v2.3.0 = 2026-07-17 WASI-0.3.0 sweep + Homebrew tap
+**v2.4.1 is the release line** (tag cut 2026-08-04, USER-GRANTED in-session per
+ADR-0156 — consumer-driven patch: a component with 2+ exports failed validation
+(#157, plus the follow-on it exposed where an export satisfied its own sortidx
+bound) + a capture buffer had no bound (#158/#159, ~64 GB reachable). Both were
+found from ClojureWasm and neither was reachable by zwasm's own fixtures; cljw
+is re-pinned to the tag. v2.4.0 = 2026-08-03 external-consumer release
+(`-Dcompiler-rt` #154 + sub-3.0 GC-cohort DCE #150).
+v2.3.0 = 2026-07-17 WASI-0.3.0 sweep + Homebrew tap
 `brew install clojurewasm/tap/zwasm`; v2.2.1 = binary-size line, v2.2.0 =
 AOT line). v1 frozen at `v1.11.1`. Dev model: cut
 a `develop/<slug>` branch from `main` → PR → CI `ci-required` 3-OS gate must be
