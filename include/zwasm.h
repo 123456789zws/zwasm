@@ -85,6 +85,31 @@ WASM_API_EXTERN int32_t zwasm_trap_kind(const wasm_trap_t*);
  * caller owns the result and must release it with wasm_func_delete. */
 WASM_API_EXTERN wasm_func_t* zwasm_instance_get_func(wasm_instance_t*, uint32_t idx);
 
+/* ── Instruction trace (interpreter mode only) ──────────────────────── */
+
+/* Per-instruction trace event. Emitted after each instruction when a trace
+ * callback is set. operand_top is the stack top value AFTER the instruction
+ * (valid when has_operand_top is non-zero). frame_depth is the call stack depth.
+ * NOTE: single-instance only in current version. */
+typedef struct {
+    uint32_t pc;
+    uint16_t op;
+    uint8_t has_operand_top;
+    uint8_t pad;
+    int64_t operand_top_i64;
+    uint32_t frame_depth;
+} zwasm_trace_event_t;
+
+/* Trace callback type. Invoked after each instruction with the event struct. */
+typedef void (*zwasm_trace_callback_t)(void* ctx, const zwasm_trace_event_t* event);
+
+/* Set per-instruction trace callback. Pass NULL to disable.
+ * Only works with interpreter-mode instances (no-op on JIT). */
+WASM_API_EXTERN void zwasm_instance_set_trace_cb(
+    wasm_instance_t*,
+    zwasm_trace_callback_t callback,
+    void* ctx);
+
 /* ── Engine selection ────────────────────────────────────────────────── */
 
 /* Per-instance engine kind for zwasm_instance_new_ex. AUTO resolves to the
