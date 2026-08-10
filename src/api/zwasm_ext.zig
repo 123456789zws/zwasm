@@ -28,28 +28,6 @@ const runtime = @import("../runtime/runtime.zig");
 
 const Instance = capi.Instance;
 
-// ========== Trace API ==========
-
-/// C-compatible trace event structure
-pub const ZwasmTraceEvent = extern struct {
-    pc: u32,
-    op: u16,
-    has_operand_top: u8,
-    pad: u8,
-    operand_top_i64: i64,
-    frame_depth: u32,
-};
-
-/// C trace callback type
-pub const ZwasmTraceCallback = *const fn (
-    ctx: ?*anyopaque,
-    event: *const ZwasmTraceEvent,
-) callconv(.c) void;
-
-// Global storage for C callback (simple version, single instance only)
-// TODO: make multi-instance safe
-var g_c_trace_cb: ?ZwasmTraceCallback = null;
-var g_c_trace_ctx: ?*anyopaque = null;
 
 /// Arm (or re-arm) the deterministic fuel budget; the running guest traps
 /// "all fuel consumed" (kind `out_of_fuel` = 17) when it is exhausted.
