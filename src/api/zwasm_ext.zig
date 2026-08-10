@@ -24,8 +24,32 @@ const std = @import("std");
 const capi = @import("instance.zig");
 const trap_surface = @import("trap_surface.zig");
 const vec = @import("vec.zig");
+const runtime = @import("../runtime/runtime.zig");
 
 const Instance = capi.Instance;
+
+// ========== Trace API ==========
+
+/// C-compatible trace event structure
+pub const ZwasmTraceEvent = extern struct {
+    pc: u32,
+    op: u16,
+    has_operand_top: u8,
+    pad: u8,
+    operand_top_i64: i64,
+    frame_depth: u32,
+};
+
+/// C trace callback type
+pub const ZwasmTraceCallback = *const fn (
+    ctx: ?*anyopaque,
+    event: *const ZwasmTraceEvent,
+) callconv(.c) void;
+
+// Global storage for C callback (simple version, single instance only)
+// TODO: make multi-instance safe
+var g_c_trace_cb: ?ZwasmTraceCallback = null;
+var g_c_trace_ctx: ?*anyopaque = null;
 
 /// Arm (or re-arm) the deterministic fuel budget; the running guest traps
 /// "all fuel consumed" (kind `out_of_fuel` = 17) when it is exhausted.
@@ -106,6 +130,69 @@ pub export fn zwasm_instance_clear_interrupt(i: ?*Instance) callconv(.c) void {
     } else if (capi.jitOf(inst)) |jit| {
         jit.clearInterrupt();
     }
+}
+
+// ========== Trace API ==========
+
+/// C-compatible trace event structure
+pub const ZwasmTraceEvent = extern struct {
+    pc: u32,
+    op: u16,
+    has_operand_top: u8,
+    pad: u8 = 0,
+    operand_top_i64: u64,
+    frame_depth: u32,
+};
+
+/// C trace callback type
+pub const ZwasmTraceCallback = *const fn (
+    ctx: ?*anyopaque,
+    event: *const ZwasmTraceEvent,
+) callconv(.c) void;
+
+// 线程局部变量，保存 C 回调和上下文
+threadlocal var g_trace_cb: ?ZwasmTraceCallback = null;
+threadlocal var g_trace_ctx: ?*anyopaque = null;
+
+// Zig 侧的 trace 回调，把 Zig TraceEvent 转换成 C 结构，然后调用 C 回调
+fn traceBridge(ctx: *anyopaque, ev: runtime.TraceEvent) void {
+    _ = ctx;
+    const cb = g_trace_cb orelse return;
+    
+    var c_ev: ZwasmTraceEvent = .{
+        .pc = ev.pc,
+        .op = @intFromEnum(ev.op),
+        .has_operand_top = if (ev.operand_top != null) 1 else 0,
+        .operand_top_i64 = if (ev.operand_top) |v| v.bits64 else 0,
+        .frame_depth = ev.frame_depth,
+    };
+    
+    cb(g_trace_ctx, &c_ev);
+}
+
+/// Set per-instruction trace callback.
+/// Pass null to disable tracing.
+/// Only works in interpreter mode (no-op on JIT instances).
+pub export fn zwasm_instance_set_trace_cb(
+    i: ?*Instance,
+    callback: ?ZwasmTraceCallback,
+    ctx: ?*anyopaque,
+) callconv(.c) void {
+    const inst = i orelse return;
+    
+    if (inst.runtime) |rt| {
+        if (callback) |cb| {
+            g_trace_cb = cb;
+            g_trace_ctx = ctx;
+            rt.trace_cb = traceBridge;
+            rt.trace_ctx = null;  // 用全局的，不用这个
+        } else {
+            rt.trace_cb = null;
+            g_trace_cb = null;
+            g_trace_ctx = null;
+        }
+    }
+    // JIT 模式不支持 trace，直接忽略
 }
 
 /// ADR-0200 — per-instance engine selection for the C ABI. Stock
