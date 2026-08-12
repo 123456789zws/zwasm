@@ -98,6 +98,8 @@ typedef struct {
     uint8_t pad;
     int64_t operand_top_i64;
     uint32_t frame_depth;
+    uint32_t current_func_idx;    // 当前执行函数全局索引，无法获取时为0xFFFFFFFF
+    uint32_t call_target_func_idx; // call指令的目标函数索引，非call时为0xFFFFFFFF
 } zwasm_trace_event_t;
 
 /* Trace callback type. Invoked after each instruction with the event struct. */
