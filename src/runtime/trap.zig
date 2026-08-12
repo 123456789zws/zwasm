@@ -80,6 +80,12 @@ pub const TraceEvent = struct {
     /// stack is empty (e.g. after a `drop` that empties it).
     operand_top: ?value.Value,
     frame_depth: u32,
+    /// 当前执行函数的全局索引（imports + defined统一编号）。
+    /// 无法获取时填 0xFFFF_FFFF（如测试用的临时帧）。
+    current_func_idx: u32 = 0xFFFF_FFFF,
+    /// 当 op 为 call 时，被调用函数的全局索引。
+    /// 非 call 指令填 0xFFFF_FFFF。
+    call_target_func_idx: u32 = 0xFFFF_FFFF,
 };
 
 pub const TraceCallback = *const fn (ctx: *anyopaque, ev: TraceEvent) void;
