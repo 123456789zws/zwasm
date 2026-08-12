@@ -120,6 +120,8 @@ pub const ZwasmTraceEvent = extern struct {
     pad: u8 = 0,
     operand_top_i64: u64,
     frame_depth: u32,
+    current_func_idx: u32,
+    call_target_func_idx: u32,
 };
 
 /// C trace callback type
@@ -143,6 +145,8 @@ fn traceBridge(ctx: *anyopaque, ev: runtime.TraceEvent) void {
         .has_operand_top = if (ev.operand_top != null) 1 else 0,
         .operand_top_i64 = if (ev.operand_top) |v| v.bits64 else 0,
         .frame_depth = ev.frame_depth,
+        .current_func_idx = ev.current_func_idx,
+        .call_target_func_idx = ev.call_target_func_idx,
     };
     
     cb(g_trace_ctx, &c_ev);
