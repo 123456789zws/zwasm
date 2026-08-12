@@ -44,11 +44,21 @@ pub fn step(
     const saved_pc = if (rt.frame_len > 0) rt.currentFrame().pc else 0;
     try handler(rt.toOpaque(), instr);
     if (rt.trace_cb) |cb| {
+        const cur_func_idx: u32 = if (rt.frame_len > 0)
+            if (rt.currentFrame().func) |zf| zf.func_idx else 0xFFFF_FFFF
+        else
+            0xFFFF_FFFF;
+        const call_target: u32 = if (instr.op == .@"call")
+            @intCast(instr.payload)
+        else
+            0xFFFF_FFFF;
         cb(rt.trace_ctx.?, .{
             .pc = saved_pc,
             .op = instr.op,
             .operand_top = if (rt.operand_len > 0) rt.operand_buf[rt.operand_len - 1] else null,
             .frame_depth = rt.frame_len,
+            .current_func_idx = cur_func_idx,
+            .call_target_func_idx = call_target,
         });
     }
 }
