@@ -86,6 +86,11 @@ pub const TraceEvent = struct {
     /// 当 op 为 call 时，被调用函数的全局索引。
     /// 非 call 指令填 0xFFFF_FFFF。
     call_target_func_idx: u32 = 0xFFFF_FFFF,
+    /// 内存访问信息（load/store指令有效）
+    has_mem: u8 = 0,
+    mem_op: u8 = 0,  // 0=无, 1=load, 2=store
+    mem_addr: u32 = 0,
+    mem_val: u64 = 0,
 };
 
 pub const TraceCallback = *const fn (ctx: *anyopaque, ev: TraceEvent) void;
