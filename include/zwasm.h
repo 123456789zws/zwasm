@@ -100,6 +100,11 @@ typedef struct {
     uint32_t frame_depth;
     uint32_t current_func_idx;    // 当前执行函数全局索引，无法获取时为0xFFFFFFFF
     uint32_t call_target_func_idx; // call指令的目标函数索引，非call时为0xFFFFFFFF
+    uint8_t has_mem;              // 是否有内存访问信息（load/store）
+    uint8_t mem_op;               // 内存操作类型：0=无, 1=load, 2=store
+    uint8_t mem_pad[2];
+    uint32_t mem_addr;            // 内存访问地址
+    uint64_t mem_val;             // 内存访问值（load=加载值，store=存储值）
 } zwasm_trace_event_t;
 
 /* Trace callback type. Invoked after each instruction with the event struct. */
