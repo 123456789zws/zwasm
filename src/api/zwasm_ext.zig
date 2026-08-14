@@ -122,6 +122,11 @@ pub const ZwasmTraceEvent = extern struct {
     frame_depth: u32,
     current_func_idx: u32,
     call_target_func_idx: u32,
+    has_mem: u8,
+    mem_op: u8,
+    mem_pad: [2]u8 = .{ 0, 0 },
+    mem_addr: u32,
+    mem_val: u64,
 };
 
 /// C trace callback type
@@ -147,6 +152,10 @@ fn traceBridge(ctx: *anyopaque, ev: runtime.TraceEvent) void {
         .frame_depth = ev.frame_depth,
         .current_func_idx = ev.current_func_idx,
         .call_target_func_idx = ev.call_target_func_idx,
+        .has_mem = ev.has_mem,
+        .mem_op = ev.mem_op,
+        .mem_addr = ev.mem_addr,
+        .mem_val = ev.mem_val,
     };
     
     cb(g_trace_ctx, &c_ev);
