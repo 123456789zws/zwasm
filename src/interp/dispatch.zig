@@ -42,7 +42,44 @@ pub fn step(
     if (idx >= dispatch_table.N_OPS) return Trap.Unreachable;
     const handler = table.interp[idx] orelse return Trap.Unreachable;
     const saved_pc = if (rt.frame_len > 0) rt.currentFrame().pc else 0;
+
+    // 捕获内存访问信息（load/store指令）
+    var has_mem: u8 = 0;
+    var mem_op: u8 = 0; // 0=无, 1=load, 2=store
+    var mem_addr: u32 = 0;
+    var mem_val: u64 = 0;
+    const is_load = switch (instr.op) {
+        .@"i32.load", .@"i64.load", .@"f32.load", .@"f64.load",
+        .@"i32.load8_s", .@"i32.load8_u", .@"i32.load16_s", .@"i32.load16_u",
+        .@"i64.load8_s", .@"i64.load8_u", .@"i64.load16_s", .@"i64.load16_u",
+        .@"i64.load32_s", .@"i64.load32_u" => true,
+        else => false,
+    };
+    const is_store = switch (instr.op) {
+        .@"i32.store", .@"i64.store", .@"f32.store", .@"f64.store",
+        .@"i32.store8", .@"i32.store16", .@"i64.store8", .@"i64.store16" => true,
+        else => false,
+    };
+    if (is_load and rt.operand_len > 0) {
+        // load: 执行前栈顶是地址
+        mem_addr = @truncate(rt.operand_buf[rt.operand_len - 1].bits64);
+        mem_op = 1;
+        has_mem = 1;
+    } else if (is_store and rt.operand_len >= 2) {
+        // store: 执行前栈顶是值，次栈顶是地址
+        mem_addr = @truncate(rt.operand_buf[rt.operand_len - 2].bits64);
+        mem_val = rt.operand_buf[rt.operand_len - 1].bits64;
+        mem_op = 2;
+        has_mem = 1;
+    }
+
     try handler(rt.toOpaque(), instr);
+
+    // 对于load，执行后栈顶是加载的值
+    if (is_load and rt.operand_len > 0) {
+        mem_val = rt.operand_buf[rt.operand_len - 1].bits64;
+    }
+
     if (rt.trace_cb) |cb| {
         const cur_func_idx: u32 = if (rt.frame_len > 0)
             if (rt.currentFrame().func) |zf| zf.func_idx else 0xFFFF_FFFF
@@ -59,6 +96,10 @@ pub fn step(
             .frame_depth = rt.frame_len,
             .current_func_idx = cur_func_idx,
             .call_target_func_idx = call_target,
+            .has_mem = has_mem,
+            .mem_op = mem_op,
+            .mem_addr = mem_addr,
+            .mem_val = mem_val,
         });
     }
 }
